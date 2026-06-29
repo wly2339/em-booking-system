@@ -52,10 +52,14 @@ async function boot() {
 }
 
 async function loadAppData() {
-  renderLoading();
-  await Promise.all([loadProfile(), loadMicroscopes()]);
-  await loadBookings();
-  renderApp();
+  try {
+    renderLoading();
+    await Promise.all([loadProfile(), loadMicroscopes()]);
+    await loadBookings();
+    renderApp();
+  } catch (error) {
+    renderAppError(error);
+  }
 }
 
 async function loadProfile() {
@@ -153,6 +157,20 @@ function renderLoading() {
       </section>
     </main>
   `;
+}
+
+function renderAppError(error) {
+  app.innerHTML = `
+    <main class="shell compact">
+      <section class="notice-panel">
+        <h1>载入失败</h1>
+        <p>${escapeHtml(friendlyError(error))}</p>
+        <button class="primary" type="button" id="reload-app">重新载入</button>
+      </section>
+    </main>
+  `;
+
+  document.querySelector("#reload-app").addEventListener("click", () => window.location.reload());
 }
 
 function renderAuth() {
@@ -877,14 +895,14 @@ function formatTime(value) {
 }
 
 function formatWeekday(value) {
-  return new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(value);
+  return new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(new Date(value));
 }
 
 function formatMonthDay(value) {
   return new Intl.DateTimeFormat("zh-CN", {
     month: "2-digit",
     day: "2-digit"
-  }).format(value);
+  }).format(new Date(value));
 }
 
 function formatDateTime(value) {
