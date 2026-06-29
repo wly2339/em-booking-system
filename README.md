@@ -1,6 +1,6 @@
 # 电镜预约系统
 
-一个面向 Cloudflare Pages + Supabase 的静态电镜预约系统。前端不需要构建，Supabase 提供登录、数据库、权限控制和预约冲突校验。
+用于电镜预约。一个面向 Cloudflare Pages + Supabase 的静态电镜预约系统。前端不需要构建，Supabase 提供登录、数据库、权限控制和预约冲突校验。
 
 ## 功能
 
