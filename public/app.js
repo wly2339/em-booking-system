@@ -192,10 +192,6 @@ function renderAuth() {
             密码
             <input name="password" type="password" autocomplete="current-password" minlength="6" required>
           </label>
-          <label>
-            姓名
-            <input name="full_name" autocomplete="name" placeholder="注册时填写">
-          </label>
           <div class="auth-actions">
             <button class="primary" type="submit" data-auth-mode="signin">登录</button>
             <button class="secondary" type="button" data-auth-mode="signup">注册</button>
@@ -223,7 +219,6 @@ function renderApp() {
         <nav class="tabs" aria-label="主导航">
           ${tabButton("schedule", "日程")}
           ${tabButton("mine", "我的预约")}
-          ${tabButton("profile", "个人信息")}
           ${isAdmin ? tabButton("admin", "管理") : ""}
         </nav>
         <button class="ghost" id="sign-out" type="button">退出登录</button>
@@ -254,40 +249,12 @@ function renderApp() {
 
         ${state.activeTab === "schedule" ? renderSchedule() : ""}
         ${state.activeTab === "mine" ? renderMine() : ""}
-        ${state.activeTab === "profile" ? renderProfile() : ""}
         ${state.activeTab === "admin" && isAdmin ? renderAdmin() : ""}
       </main>
     </div>
   `;
 
   wireAppEvents();
-}
-
-function renderProfile() {
-  return `
-    <section class="panel profile-panel">
-      <form class="profile-form" id="profile-form">
-        <h2>个人信息</h2>
-        <div class="profile-fields">
-          <label>
-            姓名
-            <input name="full_name" value="${escapeAttr(state.profile?.full_name)}" required>
-          </label>
-          <label>
-            课题组
-            <input name="lab" value="${escapeAttr(state.profile?.lab)}">
-          </label>
-          <label>
-            手机
-            <input name="phone" value="${escapeAttr(state.profile?.phone)}">
-          </label>
-        </div>
-        <div class="form-actions">
-          <button class="primary" type="submit">保存</button>
-        </div>
-      </form>
-    </section>
-  `;
 }
 
 function renderSchedule() {
@@ -364,6 +331,10 @@ function renderBookingForm() {
     <form class="booking-form" id="booking-form">
       <h2>提交预约</h2>
       <p class="form-note">提交后默认进入待审批状态；若时间段已被占用，系统会阻止重复预约。</p>
+      <label>
+        预约人姓名
+        <input name="full_name" autocomplete="name" value="${escapeAttr(state.profile?.full_name)}" required>
+      </label>
       <label>
         设备
         <select name="microscope_id" required ${availableMicroscopes.length ? "" : "disabled"}>
@@ -718,12 +689,7 @@ async function handleSignUp(event) {
   const form = new FormData(formElement);
   const { data, error } = await supabase.auth.signUp({
     email: form.get("email"),
-    password: form.get("password"),
-    options: {
-      data: {
-        full_name: form.get("full_name")
-      }
-    }
+    password: form.get("password")
   });
 
   setButtonBusy(button);
@@ -772,7 +738,14 @@ async function handleBookingCreate(event) {
   const startAt = parseFormDateTime(form.get("start_date"), form.get("start_time"));
   const endAt = parseFormDateTime(form.get("end_date"), form.get("end_time"));
   const microscope = state.microscopes.find((item) => item.id === form.get("microscope_id"));
+  const fullName = String(form.get("full_name") ?? "").trim();
   const purpose = String(form.get("purpose") ?? "").trim();
+
+  if (!fullName) {
+    setButtonBusy(button);
+    toast("请填写预约人姓名。", "error");
+    return;
+  }
 
   if (!isHalfHourSlot(startAt) || !isHalfHourSlot(endAt)) {
     setButtonBusy(button);
@@ -789,6 +762,20 @@ async function handleBookingCreate(event) {
   if (!microscope || microscope.status !== "available") {
     setButtonBusy(button);
     toast("请选择一台当前可预约的设备。", "error");
+    return;
+  }
+
+  const { error: profileError } = await supabase.from("profiles").upsert({
+    id: state.user.id,
+    email: state.user.email,
+    full_name: fullName,
+    lab: state.profile?.lab ?? "",
+    phone: state.profile?.phone ?? ""
+  });
+
+  if (profileError) {
+    setButtonBusy(button);
+    toast(friendlyError(profileError), "error");
     return;
   }
 
@@ -812,6 +799,7 @@ async function handleBookingCreate(event) {
   }
 
   event.currentTarget.reset();
+  await loadProfile();
   await loadBookings();
   renderApp();
   toast(`预约已提交：${microscope?.name ?? "所选设备"}，${formatDateTime(startAt)} 至 ${formatDateTime(endAt)}，等待管理员审批。`);
