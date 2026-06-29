@@ -109,6 +109,10 @@ security definer
 set search_path = public
 as $$
 begin
+  if current_user in ('postgres', 'supabase_admin', 'service_role') then
+    return new;
+  end if;
+
   if tg_op = 'INSERT' and new.role <> 'user' and not public.is_admin() then
     raise exception 'Only admins can create admin profiles.';
   end if;
