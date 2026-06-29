@@ -32,6 +32,11 @@ async function boot() {
   state.user = data.session?.user ?? null;
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
+    // 忽略 token 刷新和初始会话事件，避免切回页面时触发重新加载
+    if (_event === "TOKEN_REFRESHED" || _event === "INITIAL_SESSION") {
+      return;
+    }
+
     state.user = session?.user ?? null;
     if (state.user) {
       await loadAppData();
