@@ -1,0 +1,15 @@
+{
+  "name": "em-booking-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static Cloudflare Pages + Supabase electron microscope booking system.",
+  "scripts": {
+    "check": "node --check public/app.js",
+    "dev": "node scripts/dev-server.mjs",
+    "pages:dev": "npx wrangler pages dev public"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4",
+    "wrangler": "^4.24.0"
+  }
+}
