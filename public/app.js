@@ -345,6 +345,8 @@ function renderMine() {
 
 function renderBookingForm() {
   const availableMicroscopes = state.microscopes.filter((item) => item.status === "available");
+  const defaultDate = state.selectedDate;
+
   return `
     <form class="booking-form" id="booking-form">
       <h2>提交预约</h2>
@@ -357,27 +359,31 @@ function renderBookingForm() {
           `).join("")}
         </select>
       </label>
-      <label>
-        实验名称
-        <input name="title" placeholder="如：纳米颗粒 TEM 表征" required>
-      </label>
       <div class="two-col">
         <label>
-          开始
-          <input name="start_at" type="datetime-local" step="1800" required>
+          开始日期
+          <input name="start_date" type="date" value="${defaultDate}" required>
         </label>
         <label>
-          结束
-          <input name="end_at" type="datetime-local" step="1800" required>
+          开始时间
+          <select name="start_time" required>
+            ${renderHalfHourOptions("09:00")}
+          </select>
+        </label>
+        <label>
+          结束日期
+          <input name="end_date" type="date" value="${defaultDate}" required>
+        </label>
+        <label>
+          结束时间
+          <select name="end_time" required>
+            ${renderHalfHourOptions("10:00")}
+          </select>
         </label>
       </div>
       <label>
-        样品类型
-        <input name="sample_type" placeholder="粉末 / 薄膜 / 截面样">
-      </label>
-      <label>
-        实验目的
-        <textarea name="purpose" rows="4" placeholder="测试内容、测试条件、特殊注意事项"></textarea>
+        样品与实验目的
+        <textarea name="purpose" rows="4" placeholder="例如：粉末样品；观察颗粒形貌，需低剂量测试" required></textarea>
       </label>
       ${availableMicroscopes.length ? "" : `<div class="empty compact-empty">暂无可预约设备，请联系管理员。</div>`}
       <button class="primary" type="submit" ${availableMicroscopes.length ? "" : "disabled"}>提交申请</button>
@@ -541,8 +547,7 @@ function renderBookingList(bookings, options) {
             </div>
             <p>${escapeHtml(booking.microscopes?.name ?? "")} · ${escapeHtml(booking.microscopes?.location ?? "")}</p>
             <p>${escapeHtml(booking.profiles?.full_name ?? "")} ${booking.profiles?.lab ? `· ${escapeHtml(booking.profiles.lab)}` : ""}</p>
-            ${booking.sample_type ? `<p>样品：${escapeHtml(booking.sample_type)}</p>` : ""}
-            ${booking.purpose ? `<p>${escapeHtml(booking.purpose)}</p>` : ""}
+            ${booking.purpose ? `<p>样品与实验目的：${escapeHtml(booking.purpose)}</p>` : ""}
             ${booking.operator_notes ? `<p>备注：${escapeHtml(booking.operator_notes)}</p>` : ""}
             ${renderActions(booking, options)}
           </div>
@@ -750,9 +755,10 @@ async function handleBookingCreate(event) {
   const button = formElement.querySelector("button[type='submit']");
   setButtonBusy(button, "提交中...");
   const form = new FormData(event.currentTarget);
-  const startAt = new Date(form.get("start_at"));
-  const endAt = new Date(form.get("end_at"));
+  const startAt = parseFormDateTime(form.get("start_date"), form.get("start_time"));
+  const endAt = parseFormDateTime(form.get("end_date"), form.get("end_time"));
   const microscope = state.microscopes.find((item) => item.id === form.get("microscope_id"));
+  const purpose = String(form.get("purpose") ?? "").trim();
 
   if (!isHalfHourSlot(startAt) || !isHalfHourSlot(endAt)) {
     setButtonBusy(button);
@@ -775,9 +781,9 @@ async function handleBookingCreate(event) {
   const { error } = await supabase.from("bookings").insert({
     microscope_id: form.get("microscope_id"),
     user_id: state.user.id,
-    title: form.get("title"),
-    purpose: form.get("purpose"),
-    sample_type: form.get("sample_type"),
+    title: `${microscope.name} 预约 ${formatMonthDay(startAt)} ${formatTime(startAt)}`,
+    purpose,
+    sample_type: "",
     start_at: startAt.toISOString(),
     end_at: endAt.toISOString()
   });
@@ -947,6 +953,22 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(value);
+}
+
+function renderHalfHourOptions(selectedValue = "") {
+  const options = [];
+  for (let hour = 0; hour < 24; hour += 1) {
+    for (const minute of ["00", "30"]) {
+      const value = `${String(hour).padStart(2, "0")}:${minute}`;
+      options.push(`<option value="${value}" ${value === selectedValue ? "selected" : ""}>${value}</option>`);
+    }
+  }
+  return options.join("");
+}
+
+function parseFormDateTime(dateValue, timeValue) {
+  if (!dateValue || !timeValue) return new Date(NaN);
+  return new Date(`${dateValue}T${timeValue}:00`);
 }
 
 function isHalfHourSlot(date) {
