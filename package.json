@@ -4,6 +4,7 @@
   "private": true,
   "description": "Static Cloudflare Pages + Supabase electron microscope booking system.",
   "scripts": {
+    "build": "node scripts/write-config.mjs",
     "check": "node --check public/app.js",
     "dev": "node scripts/dev-server.mjs",
     "pages:dev": "npx wrangler pages dev public"

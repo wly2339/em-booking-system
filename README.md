@@ -41,10 +41,17 @@ update public.profiles set role = 'admin' where email = 'your-email@example.com'
 ## Cloudflare Pages 部署
 
 - Framework preset: `None`
-- Build command: 留空
+- Build command: `npm run build`
 - Build output directory: `public`
 
-部署前建议在 Cloudflare Pages 的文件中包含真实的 `public/config.js`。`anon key` 是前端可公开使用的密钥，真正的权限由 Supabase RLS 控制。
+在 Cloudflare Pages > Settings > Environment variables 中添加：
+
+```text
+SUPABASE_URL=https://yvsoovjbqntnuinjvilk.supabase.co
+SUPABASE_ANON_KEY=你的 anon public key
+```
+
+部署时 `npm run build` 会根据这两个环境变量自动生成 `public/config.js`。`anon key` 是前端可公开使用的密钥，真正的权限由 Supabase RLS 控制；不要使用或提交 `service_role key`。
 
 ## Supabase 设置建议
 
