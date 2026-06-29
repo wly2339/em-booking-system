@@ -96,9 +96,9 @@ async function loadMicroscopes() {
 }
 
 async function loadBookings() {
-  const dateStart = new Date(`${state.selectedDate}T00:00:00`);
-  const dateEnd = new Date(dateStart);
-  dateEnd.setDate(dateEnd.getDate() + 1);
+  const selectedDate = new Date(`${state.selectedDate}T00:00:00`);
+  const dateStart = state.activeTab === "schedule" ? startOfWeek(selectedDate) : selectedDate;
+  const dateEnd = state.activeTab === "schedule" ? addDays(dateStart, 7) : addDays(dateStart, 1);
 
   let query = supabase
     .from("bookings")
@@ -220,7 +220,7 @@ function renderApp() {
       <main class="workspace">
         <header class="topbar">
           <div>
-            <p>${new Intl.DateTimeFormat("zh-CN", { weekday: "long", month: "long", day: "numeric" }).format(new Date(`${state.selectedDate}T00:00:00`))}</p>
+            <p>${dateSummary()}</p>
             <h1>${pageTitle()}</h1>
           </div>
           <div class="filters">
@@ -251,63 +251,120 @@ function renderApp() {
 }
 
 function renderSchedule() {
+  const selectedDate = new Date(`${state.selectedDate}T00:00:00`);
+  const weekStart = startOfWeek(selectedDate);
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const visibleBookings = state.bookings.filter((booking) => state.selectedMicroscopeId === "all" || booking.microscope_id === state.selectedMicroscopeId);
+
   return `
-    <section class="content-grid">
-      <form class="booking-form" id="booking-form">
-        <h2>提交预约</h2>
-        <p class="form-note">提交后默认进入待审批状态；若时间段已被占用，系统会阻止重复预约。</p>
-        <label>
-          设备
-          <select name="microscope_id" required>
-            ${state.microscopes.filter((item) => item.status === "available").map((item) => `
-              <option value="${item.id}">${escapeHtml(item.name)} · ${escapeHtml(item.location)}</option>
-            `).join("")}
-          </select>
-        </label>
-        <label>
-          实验名称
-          <input name="title" placeholder="如：纳米颗粒 TEM 表征" required>
-        </label>
-        <div class="two-col">
-          <label>
-            开始
-            <input name="start_at" type="datetime-local" required>
-          </label>
-          <label>
-            结束
-            <input name="end_at" type="datetime-local" required>
-          </label>
-        </div>
-        <label>
-          样品类型
-          <input name="sample_type" placeholder="粉末 / 薄膜 / 截面样">
-        </label>
-        <label>
-          实验目的
-          <textarea name="purpose" rows="4" placeholder="测试内容、测试条件、特殊注意事项"></textarea>
-        </label>
-        <button class="primary" type="submit">提交申请</button>
-      </form>
-      <section class="panel">
+    <section class="panel wide schedule-panel">
+      <div class="section-head">
+        <h2>周视图</h2>
+        <span>${visibleBookings.length} 条预约</span>
+      </div>
+      <div class="schedule-controls">
+        <button type="button" data-week-shift="-7">上一周</button>
+        <button class="secondary" type="button" data-week-today>本周</button>
+        <button type="button" data-week-shift="7">下一周</button>
+      </div>
+      <div class="week-grid">
+        ${weekDays.map((day) => renderWeekDay(day, visibleBookings)).join("")}
+      </div>
+    </section>
+    <section class="panel wide">
         <div class="section-head">
-          <h2>当天日程</h2>
-          <span>${state.bookings.length} 条</span>
+          <h2>预约明细</h2>
+          <span>${visibleBookings.length} 条</span>
         </div>
-        ${renderBookingList(state.bookings, { adminActions: false, ownActions: false })}
-      </section>
+        ${renderBookingList(visibleBookings, { adminActions: false, ownActions: false })}
     </section>
   `;
 }
 
 function renderMine() {
   return `
-    <section class="panel wide">
-      <div class="section-head">
-        <h2>我的预约</h2>
-        <span>${state.bookings.length} 条</span>
-      </div>
-      ${renderBookingList(state.bookings, { ownActions: true, adminActions: false })}
+    <section class="content-grid mine-grid">
+      ${renderBookingForm()}
+      <section class="panel">
+        <div class="section-head">
+          <h2>我的预约</h2>
+          <span>${state.bookings.length} 条</span>
+        </div>
+        ${renderBookingList(state.bookings, { ownActions: true, adminActions: false })}
+      </section>
     </section>
+  `;
+}
+
+function renderBookingForm() {
+  const availableMicroscopes = state.microscopes.filter((item) => item.status === "available");
+  return `
+    <form class="booking-form" id="booking-form">
+      <h2>提交预约</h2>
+      <p class="form-note">提交后默认进入待审批状态；若时间段已被占用，系统会阻止重复预约。</p>
+      <label>
+        设备
+        <select name="microscope_id" required ${availableMicroscopes.length ? "" : "disabled"}>
+          ${availableMicroscopes.map((item) => `
+            <option value="${item.id}">${escapeHtml(item.name)} · ${escapeHtml(item.location)}</option>
+          `).join("")}
+        </select>
+      </label>
+      <label>
+        实验名称
+        <input name="title" placeholder="如：纳米颗粒 TEM 表征" required>
+      </label>
+      <div class="two-col">
+        <label>
+          开始
+          <input name="start_at" type="datetime-local" required>
+        </label>
+        <label>
+          结束
+          <input name="end_at" type="datetime-local" required>
+        </label>
+      </div>
+      <label>
+        样品类型
+        <input name="sample_type" placeholder="粉末 / 薄膜 / 截面样">
+      </label>
+      <label>
+        实验目的
+        <textarea name="purpose" rows="4" placeholder="测试内容、测试条件、特殊注意事项"></textarea>
+      </label>
+      ${availableMicroscopes.length ? "" : `<div class="empty compact-empty">暂无可预约设备，请联系管理员。</div>`}
+      <button class="primary" type="submit" ${availableMicroscopes.length ? "" : "disabled"}>提交申请</button>
+    </form>
+  `;
+}
+
+function renderWeekDay(day, bookings) {
+  const dayBookings = bookings.filter((booking) => sameDate(new Date(booking.start_at), day));
+  const dateValue = toDateInputValue(day);
+  const isSelected = dateValue === state.selectedDate;
+  const isToday = dateValue === toDateInputValue(new Date());
+
+  return `
+    <article class="week-day ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}" data-week-date="${dateValue}">
+      <div class="week-day-head">
+        <strong>${formatWeekday(day)}</strong>
+        <span>${formatMonthDay(day)}</span>
+      </div>
+      <div class="week-day-count">${dayBookings.length} 条</div>
+      <div class="week-day-bookings">
+        ${dayBookings.length ? dayBookings.map(renderWeekBooking).join("") : `<p>暂无预约</p>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderWeekBooking(booking) {
+  return `
+    <div class="week-booking status-${booking.status}">
+      <strong>${formatTime(booking.start_at)}-${formatTime(booking.end_at)}</strong>
+      <span>${escapeHtml(booking.microscopes?.name ?? "")}</span>
+      <em>${statusText(booking.status)}</em>
+    </div>
   `;
 }
 
@@ -490,6 +547,32 @@ function wireAppEvents() {
   document.querySelectorAll("[data-cancel]").forEach((button) => {
     button.addEventListener("click", () => updateBookingStatus(button.dataset.cancel, "cancelled"));
   });
+
+  document.querySelectorAll("[data-week-date]").forEach((day) => {
+    day.addEventListener("click", async () => {
+      state.selectedDate = day.dataset.weekDate;
+      await loadBookings();
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-week-shift]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const nextDate = addDays(new Date(`${state.selectedDate}T00:00:00`), Number(button.dataset.weekShift));
+      state.selectedDate = toDateInputValue(nextDate);
+      await loadBookings();
+      renderApp();
+    });
+  });
+
+  const todayButton = document.querySelector("[data-week-today]");
+  if (todayButton) {
+    todayButton.addEventListener("click", async () => {
+      state.selectedDate = toDateInputValue(new Date());
+      await loadBookings();
+      renderApp();
+    });
+  }
 
   const newMicroscopeForm = document.querySelector("#new-microscope-form");
   if (newMicroscopeForm) newMicroscopeForm.addEventListener("submit", handleMicroscopeCreate);
@@ -708,6 +791,21 @@ function pageTitle() {
   return "设备日程";
 }
 
+function dateSummary() {
+  const selectedDate = new Date(`${state.selectedDate}T00:00:00`);
+  if (state.activeTab === "schedule") {
+    const weekStart = startOfWeek(selectedDate);
+    const weekEnd = addDays(weekStart, 6);
+    return `${formatMonthDay(weekStart)} 至 ${formatMonthDay(weekEnd)}`;
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    weekday: "long",
+    month: "long",
+    day: "numeric"
+  }).format(selectedDate);
+}
+
 function statusText(status) {
   const map = {
     pending: "待审批",
@@ -734,6 +832,17 @@ function formatTime(value) {
   }).format(new Date(value));
 }
 
+function formatWeekday(value) {
+  return new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(value);
+}
+
+function formatMonthDay(value) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit"
+  }).format(value);
+}
+
 function formatDateTime(value) {
   return new Intl.DateTimeFormat("zh-CN", {
     month: "2-digit",
@@ -748,6 +857,24 @@ function toDateInputValue(date) {
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
   const day = `${date.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function startOfWeek(date) {
+  const result = new Date(date);
+  const day = result.getDay() || 7;
+  result.setDate(result.getDate() - day + 1);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function sameDate(left, right) {
+  return toDateInputValue(left) === toDateInputValue(right);
 }
 
 function escapeHtml(value = "") {

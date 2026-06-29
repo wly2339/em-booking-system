@@ -316,6 +316,10 @@ code {
   gap: 22px;
 }
 
+.mine-grid {
+  align-items: start;
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: minmax(360px, 0.85fr) minmax(520px, 1.15fr);
@@ -342,6 +346,124 @@ code {
 
 .panel.wide {
   width: 100%;
+}
+
+.schedule-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.schedule-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(140px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.week-day {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 230px;
+  border: 1px solid #d5e2f2;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(15, 35, 68, 0.05);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.week-day:hover {
+  border-color: var(--accent-border);
+  box-shadow: 0 12px 26px rgba(29, 100, 216, 0.12);
+  transform: translateY(-1px);
+}
+
+.week-day.selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px rgba(29, 100, 216, 0.12), 0 12px 26px rgba(29, 100, 216, 0.12);
+}
+
+.week-day.today .week-day-head strong {
+  color: var(--accent);
+}
+
+.week-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.week-day-head strong {
+  color: var(--navy);
+  font-size: 15px;
+}
+
+.week-day-head span,
+.week-day-count {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.week-day-count {
+  width: fit-content;
+  border: 1px solid #cfe0f5;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.week-day-bookings {
+  display: grid;
+  gap: 8px;
+}
+
+.week-day-bookings p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.week-booking {
+  display: grid;
+  gap: 3px;
+  border-left: 4px solid var(--warm);
+  border-radius: 6px;
+  padding: 8px;
+  background: #f8fbff;
+}
+
+.week-booking.status-approved {
+  border-left-color: var(--ok);
+}
+
+.week-booking.status-rejected,
+.week-booking.status-cancelled {
+  border-left-color: var(--danger);
+  opacity: 0.78;
+}
+
+.week-booking strong {
+  color: var(--navy);
+  font-size: 12px;
+}
+
+.week-booking span,
+.week-booking em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
 }
 
 .two-col {
@@ -562,6 +684,12 @@ code {
   background: #f8fbff;
 }
 
+.compact-empty {
+  min-height: 72px;
+  padding: 12px;
+  text-align: center;
+}
+
 .toast {
   position: fixed;
   right: 20px;
@@ -613,6 +741,10 @@ code {
   .tabs button {
     text-align: center;
   }
+
+  .week-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -634,6 +766,10 @@ code {
   }
 
   .booking-item {
+    grid-template-columns: 1fr;
+  }
+
+  .week-grid {
     grid-template-columns: 1fr;
   }
 
