@@ -196,7 +196,7 @@ function renderApp() {
         <nav class="tabs" aria-label="主导航">
           ${tabButton("schedule", "日程")}
           ${tabButton("mine", "我的预约")}
-          ${isAdmin ? tabButton("admin", "审批") : ""}
+          ${isAdmin ? tabButton("admin", "管理") : ""}
         </nav>
         <form class="profile-form" id="profile-form">
           <h2>个人信息</h2>
@@ -259,7 +259,7 @@ function renderSchedule() {
         <label>
           设备
           <select name="microscope_id" required>
-            ${state.microscopes.map((item) => `
+            ${state.microscopes.filter((item) => item.status === "available").map((item) => `
               <option value="${item.id}">${escapeHtml(item.name)} · ${escapeHtml(item.location)}</option>
             `).join("")}
           </select>
@@ -314,13 +314,89 @@ function renderMine() {
 function renderAdmin() {
   const pending = state.bookings.filter((item) => item.status === "pending");
   return `
-    <section class="panel wide">
-      <div class="section-head">
-        <h2>待审批</h2>
-        <span>${pending.length} 条</span>
-      </div>
-      ${renderBookingList(state.bookings, { adminActions: true, ownActions: false })}
+    <section class="admin-grid">
+      <section class="panel wide">
+        <div class="section-head">
+          <h2>预约审批</h2>
+          <span>${pending.length} 条待处理</span>
+        </div>
+        ${renderBookingList(state.bookings, { adminActions: true, ownActions: false })}
+      </section>
+
+      <section class="panel wide">
+        <div class="section-head">
+          <h2>设备管理</h2>
+          <span>${state.microscopes.length} 台设备</span>
+        </div>
+        ${renderMicroscopeManager()}
+      </section>
     </section>
+  `;
+}
+
+function renderMicroscopeManager() {
+  return `
+    <form class="device-form new-device-form" id="new-microscope-form">
+      <h3>新增设备</h3>
+      <div class="device-fields">
+        ${renderMicroscopeFields()}
+      </div>
+      <button class="primary" type="submit">新增设备</button>
+    </form>
+
+    <div class="device-list">
+      ${state.microscopes.map((microscope) => `
+        <form class="device-form" data-microscope-form="${microscope.id}">
+          <div class="device-head">
+            <div>
+              <h3>${escapeHtml(microscope.name)}</h3>
+              <p>${escapeHtml(microscope.model || "未填写型号")} · ${escapeHtml(microscope.location || "未填写位置")}</p>
+            </div>
+            <span class="device-status status-${microscope.status}">${deviceStatusText(microscope.status)}</span>
+          </div>
+          <div class="device-fields">
+            ${renderMicroscopeFields(microscope)}
+          </div>
+          <div class="row-actions">
+            <button class="primary" type="submit">保存设备</button>
+          </div>
+        </form>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderMicroscopeFields(microscope = {}) {
+  const currentStatus = microscope.status ?? "available";
+  return `
+    <label>
+      设备名称
+      <input name="name" value="${escapeAttr(microscope.name)}" placeholder="如：TEM-01 透射电镜" required>
+    </label>
+    <label>
+      型号
+      <input name="model" value="${escapeAttr(microscope.model)}" placeholder="如：Thermo Fisher Talos F200X">
+    </label>
+    <label>
+      位置
+      <input name="location" value="${escapeAttr(microscope.location)}" placeholder="如：材料中心 A201">
+    </label>
+    <label>
+      状态
+      <select name="status">
+        ${["available", "maintenance", "offline"].map((status) => `
+          <option value="${status}" ${currentStatus === status ? "selected" : ""}>${deviceStatusText(status)}</option>
+        `).join("")}
+      </select>
+    </label>
+    <label>
+      费率/小时
+      <input name="hourly_rate" type="number" min="0" step="0.01" value="${escapeAttr(microscope.hourly_rate ?? 0)}">
+    </label>
+    <label class="field-wide">
+      备注
+      <textarea name="notes" rows="3" placeholder="使用范围、限制条件、管理员提醒">${escapeHtml(microscope.notes)}</textarea>
+    </label>
   `;
 }
 
@@ -414,6 +490,13 @@ function wireAppEvents() {
   document.querySelectorAll("[data-cancel]").forEach((button) => {
     button.addEventListener("click", () => updateBookingStatus(button.dataset.cancel, "cancelled"));
   });
+
+  const newMicroscopeForm = document.querySelector("#new-microscope-form");
+  if (newMicroscopeForm) newMicroscopeForm.addEventListener("submit", handleMicroscopeCreate);
+
+  document.querySelectorAll("[data-microscope-form]").forEach((form) => {
+    form.addEventListener("submit", handleMicroscopeUpdate);
+  });
 }
 
 async function handleSignIn(event) {
@@ -496,10 +579,17 @@ async function handleBookingCreate(event) {
   const form = new FormData(event.currentTarget);
   const startAt = new Date(form.get("start_at"));
   const endAt = new Date(form.get("end_at"));
+  const microscope = state.microscopes.find((item) => item.id === form.get("microscope_id"));
 
   if (endAt <= startAt) {
     setButtonBusy(button);
     toast("结束时间必须晚于开始时间。", "error");
+    return;
+  }
+
+  if (!microscope || microscope.status !== "available") {
+    setButtonBusy(button);
+    toast("请选择一台当前可预约的设备。", "error");
     return;
   }
 
@@ -522,7 +612,6 @@ async function handleBookingCreate(event) {
     return;
   }
 
-  const microscope = state.microscopes.find((item) => item.id === form.get("microscope_id"));
   event.currentTarget.reset();
   await loadBookings();
   renderApp();
@@ -555,13 +644,67 @@ async function updateBookingStatus(id, status) {
   toast(`预约已${actionText}。`);
 }
 
+async function handleMicroscopeCreate(event) {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector("button[type='submit']");
+  setButtonBusy(button, "新增中...");
+
+  const { error } = await supabase.from("microscopes").insert(microscopePayload(event.currentTarget));
+
+  if (error) {
+    setButtonBusy(button);
+    toast(friendlyError(error), "error");
+    return;
+  }
+
+  await loadMicroscopes();
+  renderApp();
+  toast("设备已新增，用户现在可以在预约表单中选择它。");
+}
+
+async function handleMicroscopeUpdate(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const id = form.dataset.microscopeForm;
+  const button = form.querySelector("button[type='submit']");
+  setButtonBusy(button, "保存中...");
+
+  const { error } = await supabase
+    .from("microscopes")
+    .update(microscopePayload(form))
+    .eq("id", id);
+
+  if (error) {
+    setButtonBusy(button);
+    toast(friendlyError(error), "error");
+    return;
+  }
+
+  await loadMicroscopes();
+  await loadBookings();
+  renderApp();
+  toast("设备信息已保存。");
+}
+
+function microscopePayload(formElement) {
+  const form = new FormData(formElement);
+  return {
+    name: form.get("name"),
+    model: form.get("model") ?? "",
+    location: form.get("location") ?? "",
+    status: form.get("status") ?? "available",
+    hourly_rate: Number(form.get("hourly_rate") || 0),
+    notes: form.get("notes") ?? ""
+  };
+}
+
 function tabButton(id, label) {
   return `<button type="button" data-tab="${id}" class="${state.activeTab === id ? "active" : ""}">${label}</button>`;
 }
 
 function pageTitle() {
   if (state.activeTab === "mine") return "我的预约";
-  if (state.activeTab === "admin") return "预约审批";
+  if (state.activeTab === "admin") return "后台管理";
   return "设备日程";
 }
 
@@ -571,6 +714,15 @@ function statusText(status) {
     approved: "已通过",
     rejected: "已拒绝",
     cancelled: "已取消"
+  };
+  return map[status] ?? status;
+}
+
+function deviceStatusText(status) {
+  const map = {
+    available: "可预约",
+    maintenance: "维护中",
+    offline: "已停用"
   };
   return map[status] ?? status;
 }
@@ -637,6 +789,7 @@ function friendlyError(error) {
   if (lower.includes("failed to fetch") || lower.includes("network")) return "网络连接失败，请检查 Supabase 配置或稍后重试。";
   if (lower.includes("row-level security")) return "当前账号没有权限执行这个操作，请确认已登录或联系管理员。";
   if (lower.includes("duplicate key") || lower.includes("bookings_no_time_overlap")) return "该时间段已经被预约，请换一个时间。";
+  if (lower.includes("not available for booking")) return "该设备当前不可预约，请先将设备状态改为可预约。";
 
   return message;
 }

@@ -316,6 +316,12 @@ code {
   gap: 22px;
 }
 
+.admin-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.85fr) minmax(520px, 1.15fr);
+  gap: 22px;
+}
+
 .booking-form,
 .panel {
   border: 1px solid var(--line);
@@ -468,6 +474,84 @@ code {
   margin-top: 12px;
 }
 
+.device-list {
+  display: grid;
+  gap: 14px;
+}
+
+.device-form {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #d5e2f2;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 35, 68, 0.05);
+}
+
+.new-device-form {
+  margin-bottom: 18px;
+  border-color: var(--accent-border);
+  background: linear-gradient(180deg, #f8fbff, #ffffff);
+}
+
+.device-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.device-head h3,
+.device-form h3 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 16px;
+}
+
+.device-head p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.device-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.device-status {
+  flex: 0 0 auto;
+  border: 1px solid #d3e1f3;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.device-status.status-available {
+  border-color: #a8dfba;
+  color: #11632f;
+  background: #eaf8ef;
+}
+
+.device-status.status-maintenance {
+  border-color: #f4d199;
+  color: #8a4b00;
+  background: #fff6e8;
+}
+
+.device-status.status-offline {
+  border-color: #c8d2df;
+  color: #475569;
+  background: #f1f5f9;
+}
+
 .empty {
   display: grid;
   min-height: 180px;
@@ -507,7 +591,8 @@ code {
 @media (max-width: 980px) {
   .auth-layout,
   .app-frame,
-  .content-grid {
+  .content-grid,
+  .admin-grid {
     grid-template-columns: 1fr;
   }
 
@@ -543,7 +628,8 @@ code {
   }
 
   .filters,
-  .two-col {
+  .two-col,
+  .device-fields {
     grid-template-columns: 1fr;
   }
 

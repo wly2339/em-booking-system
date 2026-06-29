@@ -85,6 +85,36 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
+create or replace function public.ensure_booking_microscope_available()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  microscope_status text;
+begin
+  if new.status not in ('pending', 'approved') then
+    return new;
+  end if;
+
+  select status into microscope_status
+  from public.microscopes
+  where id = new.microscope_id;
+
+  if microscope_status is distinct from 'available' then
+    raise exception 'Selected microscope is not available for booking.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists bookings_microscope_available on public.bookings;
+create trigger bookings_microscope_available
+before insert or update of microscope_id, status on public.bookings
+for each row execute function public.ensure_booking_microscope_available();
+
 alter table public.profiles enable row level security;
 alter table public.microscopes enable row level security;
 alter table public.bookings enable row level security;
