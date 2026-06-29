@@ -4,6 +4,7 @@ const config = window.EM_BOOKING_CONFIG;
 const app = document.querySelector("#app");
 
 let supabase = null;
+let booted = false;
 let state = {
   user: null,
   profile: null,
@@ -31,19 +32,12 @@ async function boot() {
   const { data } = await supabase.auth.getSession();
   state.user = data.session?.user ?? null;
 
-  supabase.auth.onAuthStateChange(async (_event, session) => {
-    // 忽略 token 刷新和初始会话事件，避免切回页面时触发重新加载
-    if (_event === "TOKEN_REFRESHED" || _event === "INITIAL_SESSION") {
-      return;
-    }
-
+  supabase.auth.onAuthStateChange((_event, session) => {
     state.user = session?.user ?? null;
-    if (state.user) {
-      await loadAppData();
-    } else {
+    if (_event === "SIGNED_OUT") {
       state.profile = null;
       state.bookings = [];
-      renderAuth();
+      if (booted) renderAuth();
     }
   });
 
@@ -52,6 +46,8 @@ async function boot() {
   } else {
     renderAuth();
   }
+
+  booted = true;
 }
 
 async function loadAppData() {
