@@ -223,24 +223,9 @@ function renderApp() {
         <nav class="tabs" aria-label="主导航">
           ${tabButton("schedule", "日程")}
           ${tabButton("mine", "我的预约")}
+          ${tabButton("profile", "个人信息")}
           ${isAdmin ? tabButton("admin", "管理") : ""}
         </nav>
-        <form class="profile-form" id="profile-form">
-          <h2>个人信息</h2>
-          <label>
-            姓名
-            <input name="full_name" value="${escapeAttr(state.profile?.full_name)}" required>
-          </label>
-          <label>
-            课题组
-            <input name="lab" value="${escapeAttr(state.profile?.lab)}">
-          </label>
-          <label>
-            手机
-            <input name="phone" value="${escapeAttr(state.profile?.phone)}">
-          </label>
-          <button type="submit">保存</button>
-        </form>
         <button class="ghost" id="sign-out" type="button">退出登录</button>
       </aside>
 
@@ -269,12 +254,40 @@ function renderApp() {
 
         ${state.activeTab === "schedule" ? renderSchedule() : ""}
         ${state.activeTab === "mine" ? renderMine() : ""}
+        ${state.activeTab === "profile" ? renderProfile() : ""}
         ${state.activeTab === "admin" && isAdmin ? renderAdmin() : ""}
       </main>
     </div>
   `;
 
   wireAppEvents();
+}
+
+function renderProfile() {
+  return `
+    <section class="panel profile-panel">
+      <form class="profile-form" id="profile-form">
+        <h2>个人信息</h2>
+        <div class="profile-fields">
+          <label>
+            姓名
+            <input name="full_name" value="${escapeAttr(state.profile?.full_name)}" required>
+          </label>
+          <label>
+            课题组
+            <input name="lab" value="${escapeAttr(state.profile?.lab)}">
+          </label>
+          <label>
+            手机
+            <input name="phone" value="${escapeAttr(state.profile?.phone)}">
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="primary" type="submit">保存</button>
+        </div>
+      </form>
+    </section>
+  `;
 }
 
 function renderSchedule() {
@@ -599,7 +612,8 @@ function wireAppEvents() {
     renderApp();
   });
 
-  document.querySelector("#profile-form").addEventListener("submit", handleProfileSave);
+  const profileForm = document.querySelector("#profile-form");
+  if (profileForm) profileForm.addEventListener("submit", handleProfileSave);
   document.querySelector("#sign-out").addEventListener("click", () => supabase.auth.signOut());
 
   const bookingForm = document.querySelector("#booking-form");
