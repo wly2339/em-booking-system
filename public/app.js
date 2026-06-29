@@ -103,16 +103,17 @@ async function loadMicroscopes() {
 
 async function loadBookings() {
   const selectedDate = new Date(`${state.selectedDate}T00:00:00`);
-  const dateStart = state.activeTab === "schedule" ? startOfWeek(selectedDate) : selectedDate;
-  const dateEnd = state.activeTab === "schedule" ? addDays(dateStart, 7) : addDays(dateStart, 1);
+  const usesWeekRange = ["schedule", "mine"].includes(state.activeTab);
+  const dateStart = usesWeekRange ? startOfWeek(selectedDate) : selectedDate;
+  const dateEnd = usesWeekRange ? addDays(dateStart, 7) : addDays(dateStart, 1);
 
   let query = supabase
     .from("bookings")
     .select("*, microscopes(name, location), profiles(full_name, lab, email)")
     .order("start_at");
 
-  if (state.activeTab === "schedule") {
-    // 周视图：查询在该周内开始的预约
+  if (usesWeekRange) {
+    // 周视图页面和“我的预约”页面：查询在该周内开始的预约
     query = query.gte("start_at", dateStart.toISOString()).lt("start_at", dateEnd.toISOString());
   } else {
     // 日视图/我的预约：查询与当天有重叠的预约（支持跨天预约显示）
@@ -281,6 +282,7 @@ function renderSchedule() {
   const weekStart = startOfWeek(selectedDate);
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
   const visibleBookings = state.bookings.filter((booking) => state.selectedMicroscopeId === "all" || booking.microscope_id === state.selectedMicroscopeId);
+  const selectedDayBookings = visibleBookings.filter((booking) => sameDate(new Date(booking.start_at), selectedDate));
 
   return `
     <section class="panel wide schedule-panel">
@@ -299,24 +301,43 @@ function renderSchedule() {
     </section>
     <section class="panel wide">
         <div class="section-head">
-          <h2>预约明细</h2>
-          <span>${visibleBookings.length} 条</span>
+          <h2>${formatMonthDay(selectedDate)} 预约明细</h2>
+          <span>${selectedDayBookings.length} 条</span>
         </div>
-        ${renderBookingList(visibleBookings, { adminActions: false, ownActions: false })}
+        ${renderBookingList(selectedDayBookings, { adminActions: false, ownActions: false })}
     </section>
   `;
 }
 
 function renderMine() {
+  const selectedDate = new Date(`${state.selectedDate}T00:00:00`);
+  const weekStart = startOfWeek(selectedDate);
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const selectedDayBookings = state.bookings.filter((booking) => sameDate(new Date(booking.start_at), selectedDate));
+
   return `
     <section class="content-grid mine-grid">
       ${renderBookingForm()}
-      <section class="panel">
+      <section class="panel mine-schedule-panel">
         <div class="section-head">
-          <h2>我的预约</h2>
+          <h2>我的本周预约</h2>
           <span>${state.bookings.length} 条</span>
         </div>
-        ${renderBookingList(state.bookings, { ownActions: true, adminActions: false })}
+        <div class="schedule-controls">
+          <button type="button" data-week-shift="-7">上一周</button>
+          <button class="secondary" type="button" data-week-today>本周</button>
+          <button type="button" data-week-shift="7">下一周</button>
+        </div>
+        <div class="week-grid">
+          ${weekDays.map((day) => renderWeekDay(day, state.bookings)).join("")}
+        </div>
+        <div class="booking-subsection">
+          <div class="section-head compact-head">
+            <h3>${formatMonthDay(selectedDate)} 我的预约明细</h3>
+            <span>${selectedDayBookings.length} 条</span>
+          </div>
+          ${renderBookingList(selectedDayBookings, { ownActions: true, adminActions: false })}
+        </div>
       </section>
     </section>
   `;
@@ -343,11 +364,11 @@ function renderBookingForm() {
       <div class="two-col">
         <label>
           开始
-          <input name="start_at" type="datetime-local" required>
+          <input name="start_at" type="datetime-local" step="1800" required>
         </label>
         <label>
           结束
-          <input name="end_at" type="datetime-local" required>
+          <input name="end_at" type="datetime-local" step="1800" required>
         </label>
       </div>
       <label>
@@ -444,18 +465,21 @@ function renderMicroscopeManager() {
 }
 
 function renderMicroscopeDetail(microscope) {
+  const isNewMicroscope = microscope._new === true;
+  const formAttribute = isNewMicroscope ? "data-microscope-create" : `data-microscope-form="${microscope.id}"`;
+
   return `
     <div class="device-detail">
       <div class="device-detail-head">
         <button class="secondary" type="button" data-back-microscope>← 返回设备列表</button>
-        <h3>${escapeHtml(microscope.name)}</h3>
+        <h3>${isNewMicroscope ? "新增设备" : escapeHtml(microscope.name)}</h3>
       </div>
-      <form class="device-form" data-microscope-form="${microscope.id}">
+      <form class="device-form" ${formAttribute}>
         <div class="device-fields">
           ${renderMicroscopeFields(microscope)}
         </div>
         <div class="row-actions">
-          <button class="primary" type="submit">保存设备</button>
+          <button class="primary" type="submit">${isNewMicroscope ? "新增设备" : "保存设备"}</button>
           <button class="danger ghost-danger" type="button" data-close-microscope>取消</button>
         </div>
       </form>
@@ -642,6 +666,10 @@ function wireAppEvents() {
   document.querySelectorAll("[data-microscope-form]").forEach((form) => {
     form.addEventListener("submit", handleMicroscopeUpdate);
   });
+
+  document.querySelectorAll("[data-microscope-create]").forEach((form) => {
+    form.addEventListener("submit", handleMicroscopeCreate);
+  });
 }
 
 async function handleSignIn(event) {
@@ -726,6 +754,12 @@ async function handleBookingCreate(event) {
   const endAt = new Date(form.get("end_at"));
   const microscope = state.microscopes.find((item) => item.id === form.get("microscope_id"));
 
+  if (!isHalfHourSlot(startAt) || !isHalfHourSlot(endAt)) {
+    setButtonBusy(button);
+    toast("预约时间只能选择整点或半点，例如 09:00 或 09:30。", "error");
+    return;
+  }
+
   if (endAt <= startAt) {
     setButtonBusy(button);
     toast("结束时间必须晚于开始时间。", "error");
@@ -803,6 +837,7 @@ async function handleMicroscopeCreate(event) {
   }
 
   await loadMicroscopes();
+  state.selectedMicroscopeForEdit = null;
   renderApp();
   toast("设备已新增，用户现在可以在预约表单中选择它。");
 }
@@ -912,6 +947,10 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(value);
+}
+
+function isHalfHourSlot(date) {
+  return !Number.isNaN(date.getTime()) && date.getSeconds() === 0 && date.getMilliseconds() === 0 && [0, 30].includes(date.getMinutes());
 }
 
 function toDateInputValue(date) {

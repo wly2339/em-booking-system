@@ -353,6 +353,11 @@ code {
   gap: 16px;
 }
 
+.mine-schedule-panel {
+  display: grid;
+  gap: 16px;
+}
+
 .schedule-controls {
   display: flex;
   flex-wrap: wrap;
@@ -493,6 +498,23 @@ code {
 .booking-list {
   display: grid;
   gap: 12px;
+}
+
+.booking-subsection {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.compact-head {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.compact-head h3 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text);
 }
 
 .booking-item {
