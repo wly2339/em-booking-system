@@ -596,6 +596,89 @@ code {
   margin-top: 12px;
 }
 
+.device-grid-header {
+  margin-bottom: 16px;
+}
+
+.device-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.device-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 35, 68, 0.05);
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.device-card:hover {
+  border-color: var(--accent-border);
+  box-shadow: 0 12px 26px rgba(29, 100, 216, 0.12);
+  transform: translateY(-2px);
+}
+
+.device-card.status-maintenance {
+  border-left: 4px solid var(--warm);
+}
+
+.device-card.status-offline {
+  border-left: 4px solid var(--muted);
+  opacity: 0.78;
+}
+
+.device-card.status-available {
+  border-left: 4px solid var(--ok);
+}
+
+.device-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.device-card-head h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--navy);
+}
+
+.device-card-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.device-card-meta p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.device-detail {
+  display: grid;
+  gap: 18px;
+}
+
+.device-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.device-detail-head h3 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--navy);
+}
+
 .device-list {
   display: grid;
   gap: 14px;

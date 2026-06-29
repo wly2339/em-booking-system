@@ -12,7 +12,8 @@ let state = {
   bookings: [],
   activeTab: "schedule",
   selectedDate: toDateInputValue(new Date()),
-  selectedMicroscopeId: "all"
+  selectedMicroscopeId: "all",
+  selectedMicroscopeForEdit: null
 };
 
 function initClient() {
@@ -393,33 +394,47 @@ function renderAdmin() {
 }
 
 function renderMicroscopeManager() {
-  return `
-    <form class="device-form new-device-form" id="new-microscope-form">
-      <h3>新增设备</h3>
-      <div class="device-fields">
-        ${renderMicroscopeFields()}
-      </div>
-      <button class="primary" type="submit">新增设备</button>
-    </form>
+  if (state.selectedMicroscopeForEdit) {
+    return renderMicroscopeDetail(state.selectedMicroscopeForEdit);
+  }
 
-    <div class="device-list">
+  return `
+    <div class="device-grid-header">
+      <button class="secondary" type="button" data-new-microscope>+ 新增设备</button>
+    </div>
+    <div class="device-grid">
       ${state.microscopes.map((microscope) => `
-        <form class="device-form" data-microscope-form="${microscope.id}">
-          <div class="device-head">
-            <div>
-              <h3>${escapeHtml(microscope.name)}</h3>
-              <p>${escapeHtml(microscope.model || "未填写型号")} · ${escapeHtml(microscope.location || "未填写位置")}</p>
-            </div>
+        <article class="device-card status-${microscope.status}" data-edit-microscope="${microscope.id}">
+          <div class="device-card-head">
+            <h3>${escapeHtml(microscope.name)}</h3>
             <span class="device-status status-${microscope.status}">${deviceStatusText(microscope.status)}</span>
           </div>
-          <div class="device-fields">
-            ${renderMicroscopeFields(microscope)}
+          <div class="device-card-meta">
+            ${microscope.model ? `<p>型号：${escapeHtml(microscope.model)}</p>` : ""}
+            ${microscope.location ? `<p>位置：${escapeHtml(microscope.location)}</p>` : ""}
           </div>
-          <div class="row-actions">
-            <button class="primary" type="submit">保存设备</button>
-          </div>
-        </form>
+        </article>
       `).join("")}
+    </div>
+  `;
+}
+
+function renderMicroscopeDetail(microscope) {
+  return `
+    <div class="device-detail">
+      <div class="device-detail-head">
+        <button class="secondary" type="button" data-back-microscope>← 返回设备列表</button>
+        <h3>${escapeHtml(microscope.name)}</h3>
+      </div>
+      <form class="device-form" data-microscope-form="${microscope.id}">
+        <div class="device-fields">
+          ${renderMicroscopeFields(microscope)}
+        </div>
+        <div class="row-actions">
+          <button class="primary" type="submit">保存设备</button>
+          <button class="danger ghost-danger" type="button" data-close-microscope>取消</button>
+        </div>
+      </form>
     </div>
   `;
 }
@@ -575,8 +590,30 @@ function wireAppEvents() {
     });
   }
 
-  const newMicroscopeForm = document.querySelector("#new-microscope-form");
-  if (newMicroscopeForm) newMicroscopeForm.addEventListener("submit", handleMicroscopeCreate);
+  // 设备管理：新增设备
+  document.querySelectorAll("[data-new-microscope]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedMicroscopeForEdit = { _new: true, name: "", model: "", location: "", status: "available", hourly_rate: 0, notes: "" };
+      renderApp();
+    });
+  });
+
+  // 设备管理：点击卡片进入详情
+  document.querySelectorAll("[data-edit-microscope]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.dataset.editMicroscope;
+      state.selectedMicroscopeForEdit = state.microscopes.find((item) => item.id === id) ?? null;
+      renderApp();
+    });
+  });
+
+  // 设备管理：返回列表
+  document.querySelectorAll("[data-back-microscope], [data-close-microscope]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedMicroscopeForEdit = null;
+      renderApp();
+    });
+  });
 
   document.querySelectorAll("[data-microscope-form]").forEach((form) => {
     form.addEventListener("submit", handleMicroscopeUpdate);
