@@ -105,9 +105,15 @@ async function loadBookings() {
   let query = supabase
     .from("bookings")
     .select("*, microscopes(name, location), profiles(full_name, lab, email)")
-    .gte("start_at", dateStart.toISOString())
-    .lt("start_at", dateEnd.toISOString())
     .order("start_at");
+
+  if (state.activeTab === "schedule") {
+    // 周视图：查询在该周内开始的预约
+    query = query.gte("start_at", dateStart.toISOString()).lt("start_at", dateEnd.toISOString());
+  } else {
+    // 日视图/我的预约：查询与当天有重叠的预约（支持跨天预约显示）
+    query = query.lt("start_at", dateEnd.toISOString()).gt("end_at", dateStart.toISOString());
+  }
 
   if (state.activeTab === "mine") {
     query = query.eq("user_id", state.user.id);
@@ -483,8 +489,8 @@ function renderBookingList(bookings, options) {
       ${bookings.map((booking) => `
         <article class="booking-item status-${booking.status}">
           <div class="booking-time">
-            <strong>${formatTime(booking.start_at)}</strong>
-            <span>${formatTime(booking.end_at)}</span>
+            <strong>${formatWeekday(booking.start_at)} ${formatMonthDay(booking.start_at)}</strong>
+            <span>${formatTime(booking.start_at)} ~ ${formatTime(booking.end_at)}</span>
           </div>
           <div class="booking-main">
             <div class="booking-title">

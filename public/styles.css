@@ -497,7 +497,7 @@ code {
 
 .booking-item {
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
+  grid-template-columns: 100px minmax(0, 1fr);
   gap: 14px;
   border: 1px solid var(--line);
   border-left: 6px solid var(--warm);
@@ -528,16 +528,23 @@ code {
   display: grid;
   align-content: start;
   gap: 4px;
+  min-width: 90px;
 }
 
 .booking-time strong {
-  font-size: 18px;
+  font-size: 14px;
   color: var(--navy);
+  white-space: nowrap;
 }
 
 .booking-time span,
 .booking-main p {
   color: var(--muted);
+}
+
+.booking-time span {
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .booking-main {
