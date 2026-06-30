@@ -9,6 +9,7 @@ let state = {
   user: null,
   profile: null,
   userProfiles: [],
+  authMode: "signin",
   microscopes: [],
   bookings: [],
   activeTab: "schedule",
@@ -39,6 +40,7 @@ async function boot() {
     if (_event === "SIGNED_OUT") {
       state.profile = null;
       state.bookings = [];
+      state.authMode = "signin";
       if (booted) renderAuth();
     }
   });
@@ -203,6 +205,7 @@ function renderAppError(error) {
 }
 
 function renderAuth() {
+  const isSignUp = state.authMode === "signup";
   app.innerHTML = `
     <main class="auth-layout">
       <section class="auth-media" aria-label="电镜实验室"></section>
@@ -212,17 +215,23 @@ function renderAuth() {
           <strong>电镜预约系统</strong>
         </div>
         <form class="auth-form" id="auth-form">
+          ${isSignUp ? `
+            <label>
+              姓名
+              <input name="full_name" type="text" autocomplete="name" required placeholder="请输入真实姓名">
+            </label>
+          ` : ""}
           <label>
             邮箱
             <input name="email" type="email" autocomplete="email" required>
           </label>
           <label>
             密码
-            <input name="password" type="password" autocomplete="current-password" minlength="6" required>
+            <input name="password" type="password" autocomplete="${isSignUp ? "new-password" : "current-password"}" minlength="6" required>
           </label>
           <div class="auth-actions">
-            <button class="primary" type="submit" data-auth-mode="signin">登录</button>
-            <button class="secondary" type="button" data-auth-mode="signup">注册</button>
+            <button class="primary" type="submit" data-auth-mode="${isSignUp ? "signup" : "signin"}">${isSignUp ? "注册" : "登录"}</button>
+            <button class="secondary" type="button" data-auth-toggle>${isSignUp ? "返回登录" : "注册账号"}</button>
           </div>
           <p class="form-note">注册后如果无法登录，请先检查 Supabase 是否开启了邮箱确认。</p>
         </form>
@@ -230,8 +239,11 @@ function renderAuth() {
     </main>
   `;
 
-  document.querySelector("#auth-form").addEventListener("submit", handleSignIn);
-  document.querySelector("[data-auth-mode='signup']").addEventListener("click", handleSignUp);
+  document.querySelector("#auth-form").addEventListener("submit", isSignUp ? handleSignUp : handleSignIn);
+  document.querySelector("[data-auth-toggle]").addEventListener("click", () => {
+    state.authMode = isSignUp ? "signin" : "signup";
+    renderAuth();
+  });
 }
 
 function renderApp() {
@@ -768,14 +780,24 @@ async function handleSignIn(event) {
 }
 
 async function handleSignUp(event) {
-  const formElement = event.currentTarget.closest(".auth-panel").querySelector("form");
-  const button = event.currentTarget;
+  event.preventDefault();
+  const formElement = event.currentTarget;
+  const button = formElement.querySelector("[data-auth-mode='signup']");
   setButtonBusy(button, "正在注册...");
   toast("正在创建账号，请稍候。", "info");
   const form = new FormData(formElement);
+  const fullName = String(form.get("full_name") ?? "").trim();
+  if (!fullName) {
+    setButtonBusy(button);
+    toast("注册时需要填写姓名。", "error");
+    return;
+  }
   const { data, error } = await supabase.auth.signUp({
     email: form.get("email"),
-    password: form.get("password")
+    password: form.get("password"),
+    options: {
+      data: { full_name: fullName }
+    }
   });
 
   setButtonBusy(button);

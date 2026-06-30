@@ -250,7 +250,7 @@ code {
 }
 
 .tabs button {
-  width: 150px;
+  width: 100%;
   min-height: 36px;
   justify-content: start;
   text-align: left;
