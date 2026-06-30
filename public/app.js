@@ -669,7 +669,7 @@ async function handleSignIn(event) {
   setButtonBusy(button, "正在登录...");
   toast("正在登录，请稍候。", "info");
   const form = new FormData(event.currentTarget);
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: form.get("email"),
     password: form.get("password")
   });
@@ -678,6 +678,8 @@ async function handleSignIn(event) {
     toast(friendlyError(error), "error");
     return;
   }
+  state.user = data.user;
+  await loadAppData();
   toast("登录成功，正在进入预约系统。");
 }
 
@@ -701,6 +703,10 @@ async function handleSignUp(event) {
       ? "注册成功，请先打开邮箱完成确认，然后再登录。"
       : "注册成功，已自动登录。";
     toast(message);
+    if (data.session) {
+      state.user = data.user;
+      await loadAppData();
+    }
   }
 }
 
