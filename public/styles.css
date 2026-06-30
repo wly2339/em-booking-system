@@ -229,7 +229,7 @@ code {
 
 .app-frame {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 250px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -250,7 +250,7 @@ code {
 }
 
 .tabs button {
-  width: fit-content;
+  width: 150px;
   min-height: 36px;
   justify-content: start;
   text-align: left;
@@ -262,7 +262,7 @@ code {
 }
 
 .sidebar > .ghost {
-  width: fit-content;
+  width: 110px;
   min-height: 36px;
   padding: 0 12px;
 }
