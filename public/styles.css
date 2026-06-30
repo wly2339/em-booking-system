@@ -250,13 +250,21 @@ code {
 }
 
 .tabs button {
-  width: 100%;
+  width: fit-content;
+  min-height: 36px;
   justify-content: start;
   text-align: left;
   border-color: transparent;
+  padding: 0 12px;
   color: #42526d;
   background: transparent;
   box-shadow: none;
+}
+
+.sidebar > .ghost {
+  width: fit-content;
+  min-height: 36px;
+  padding: 0 12px;
 }
 
 .tabs button.active {
@@ -851,6 +859,7 @@ code {
   }
 
   .tabs button {
+    width: 100%;
     text-align: center;
   }
 
