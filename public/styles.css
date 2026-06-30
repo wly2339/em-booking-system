@@ -229,16 +229,16 @@ code {
 
 .app-frame {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-columns: 220px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .sidebar {
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 24px;
+  gap: 16px;
   border-right: 1px solid #c6d6ea;
-  padding: 24px;
+  padding: 18px;
   background:
     linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
   box-shadow: 8px 0 30px rgba(15, 35, 68, 0.06);
@@ -246,7 +246,7 @@ code {
 
 .tabs {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .tabs button {
