@@ -541,6 +541,7 @@ function renderMicroscopeDetail(microscope) {
         </div>
         <div class="row-actions">
           <button class="primary" type="submit">${isNewMicroscope ? "新增设备" : "保存设备"}</button>
+          ${isNewMicroscope ? "" : `<button class="danger" type="button" data-delete-microscope="${microscope.id}">删除设备</button>`}
           <button class="danger ghost-danger" type="button" data-close-microscope>取消</button>
         </div>
       </form>
@@ -738,6 +739,10 @@ function wireAppEvents() {
 
   document.querySelectorAll("[data-microscope-create]").forEach((form) => {
     form.addEventListener("submit", handleMicroscopeCreate);
+  });
+
+  document.querySelectorAll("[data-delete-microscope]").forEach((button) => {
+    button.addEventListener("click", () => handleMicroscopeDelete(button.dataset.deleteMicroscope));
   });
 }
 
@@ -979,6 +984,33 @@ async function handleMicroscopeUpdate(event) {
   await loadBookings();
   renderApp();
   toast("设备信息已保存。");
+}
+
+async function handleMicroscopeDelete(id) {
+  const microscope = state.microscopes.find((item) => item.id === id);
+  const name = microscope?.name ?? "该设备";
+
+  if (!window.confirm(`确定要删除「${name}」吗？如果已有预约记录，系统会阻止删除。`)) return;
+
+  toast("正在删除设备...", "info");
+  const { error } = await supabase
+    .from("microscopes")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    const message = error.message.includes("violates foreign key constraint")
+      ? "该设备已有预约记录，不能直接删除。可以把设备状态改为“已停用”来隐藏预约入口。"
+      : friendlyError(error);
+    toast(message, "error");
+    return;
+  }
+
+  await loadMicroscopes();
+  await loadBookings();
+  state.selectedMicroscopeForEdit = null;
+  renderApp();
+  toast("设备已删除。");
 }
 
 function microscopePayload(formElement) {
