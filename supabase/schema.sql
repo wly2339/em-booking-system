@@ -6,10 +6,14 @@ create table if not exists public.profiles (
   full_name text not null default '',
   lab text not null default '',
   phone text not null default '',
-  role text not null default 'user' check (role in ('user', 'admin')),
+  role text not null default 'user' check (role in ('user', 'admin', 'super_admin')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles
+  add constraint profiles_role_check check (role in ('user', 'admin', 'super_admin'));
 
 create table if not exists public.microscopes (
   id uuid primary key default gen_random_uuid(),
@@ -128,7 +132,20 @@ set search_path = public
 as $$
   select exists (
     select 1 from public.profiles
-    where id = auth.uid() and role = 'admin'
+    where id = auth.uid() and role in ('admin', 'super_admin')
+  );
+$$;
+
+create or replace function public.is_super_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'super_admin'
   );
 $$;
 
@@ -143,12 +160,12 @@ begin
     return new;
   end if;
 
-  if tg_op = 'INSERT' and new.role <> 'user' and not public.is_admin() then
-    raise exception 'Only admins can create admin profiles.';
+  if tg_op = 'INSERT' and new.role <> 'user' and not public.is_super_admin() then
+    raise exception 'Only super admins can create admin profiles.';
   end if;
 
-  if tg_op = 'UPDATE' and old.role <> new.role and not public.is_admin() then
-    raise exception 'Only admins can change profile roles.';
+  if tg_op = 'UPDATE' and old.role <> new.role and not public.is_super_admin() then
+    raise exception 'Only super admins can change profile roles.';
   end if;
 
   return new;
@@ -221,5 +238,5 @@ values
   ('FIB-SEM 双束系统', 'Thermo Fisher Helios 5 UX', '材料中心 B105', 420.00, '需管理员确认实验方案')
 on conflict do nothing;
 
--- 创建首个管理员后，在 Supabase SQL Editor 中执行：
--- update public.profiles set role = 'admin' where email = 'your-email@example.com';
+-- 创建首个超级管理员后，在 Supabase SQL Editor 中执行：
+-- update public.profiles set role = 'super_admin' where email = 'your-email@example.com';

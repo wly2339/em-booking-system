@@ -633,6 +633,56 @@ code {
   margin-top: 12px;
 }
 
+.user-table {
+  display: grid;
+  gap: 10px;
+}
+
+.user-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.user-row p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.user-row .row-actions {
+  justify-content: end;
+  margin-top: 0;
+}
+
+.role-pill {
+  border: 1px solid #cfe0f5;
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.role-super_admin {
+  border-color: #b8dcca;
+  color: #17633a;
+  background: #eefaf3;
+}
+
+.role-admin {
+  border-color: #f2d08f;
+  color: #835500;
+  background: #fff8e8;
+}
+
 .device-grid-header {
   margin-bottom: 16px;
 }
@@ -855,12 +905,21 @@ code {
   }
 
   .tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   }
 
   .tabs button {
     width: 100%;
     text-align: center;
+  }
+
+  .user-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .user-row .row-actions {
+    justify-content: start;
   }
 
   .week-grid {

@@ -8,6 +8,7 @@ let booted = false;
 let state = {
   user: null,
   profile: null,
+  userProfiles: [],
   microscopes: [],
   bookings: [],
   activeTab: "schedule",
@@ -55,11 +56,38 @@ async function loadAppData() {
   try {
     renderLoading();
     await Promise.all([loadProfile(), loadMicroscopes()]);
+    if (isSuperAdmin()) {
+      await loadUserProfiles();
+    } else {
+      state.userProfiles = [];
+    }
     await loadBookings();
     renderApp();
   } catch (error) {
     renderAppError(error);
   }
+}
+
+async function loadUserProfiles() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, lab, role, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    toast(error.message, "error");
+    return;
+  }
+
+  state.userProfiles = data ?? [];
+}
+
+function isAdminRole() {
+  return ["admin", "super_admin"].includes(state.profile?.role);
+}
+
+function isSuperAdmin() {
+  return state.profile?.role === "super_admin";
 }
 
 async function loadProfile() {
@@ -207,7 +235,8 @@ function renderAuth() {
 }
 
 function renderApp() {
-  const isAdmin = state.profile?.role === "admin";
+  const isAdmin = isAdminRole();
+  const superAdmin = isSuperAdmin();
 
   app.innerHTML = `
     <div class="app-frame">
@@ -220,6 +249,7 @@ function renderApp() {
           ${tabButton("schedule", "日程")}
           ${tabButton("mine", "我的预约")}
           ${isAdmin ? tabButton("admin", "管理") : ""}
+          ${superAdmin ? tabButton("users", "用户管理") : ""}
         </nav>
         <button class="ghost" id="sign-out" type="button">退出登录</button>
       </aside>
@@ -250,6 +280,7 @@ function renderApp() {
         ${state.activeTab === "schedule" ? renderSchedule() : ""}
         ${state.activeTab === "mine" ? renderMine() : ""}
         ${state.activeTab === "admin" && isAdmin ? renderAdmin() : ""}
+        ${state.activeTab === "users" && superAdmin ? renderUserAdmin() : ""}
       </main>
     </div>
   `;
@@ -428,6 +459,46 @@ function renderAdmin() {
   `;
 }
 
+function renderUserAdmin() {
+  const adminCount = state.userProfiles.filter((user) => user.role === "admin").length;
+  const superAdminCount = state.userProfiles.filter((user) => user.role === "super_admin").length;
+
+  return `
+    <section class="panel wide">
+      <div class="section-head">
+        <h2>用户管理</h2>
+        <span>${state.userProfiles.length} 人已注册 · ${adminCount} 名管理员 · ${superAdminCount} 名超级管理员</span>
+      </div>
+      <div class="user-table">
+        ${state.userProfiles.map((user) => `
+          <article class="user-row">
+            <div>
+              <strong>${escapeHtml(user.full_name || user.email || "未填写姓名")}</strong>
+              <p>${escapeHtml(user.email || "")}${user.lab ? ` · ${escapeHtml(user.lab)}` : ""}</p>
+            </div>
+            <span class="role-pill role-${user.role}">${roleText(user.role)}</span>
+            <div class="row-actions">
+              ${renderUserRoleAction(user)}
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderUserRoleAction(user) {
+  if (user.id === state.user.id || user.role === "super_admin") {
+    return "";
+  }
+
+  if (user.role === "admin") {
+    return `<button class="danger ghost-danger" type="button" data-user-role="${user.id}" data-role="user">移除管理员</button>`;
+  }
+
+  return `<button class="secondary" type="button" data-user-role="${user.id}" data-role="admin">设为管理员</button>`;
+}
+
 function renderMicroscopeManager() {
   if (state.selectedMicroscopeForEdit) {
     return renderMicroscopeDetail(state.selectedMicroscopeForEdit);
@@ -566,7 +637,11 @@ function wireAppEvents() {
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", async () => {
       state.activeTab = button.dataset.tab;
-      await loadBookings();
+      if (state.activeTab === "users") {
+        await loadUserProfiles();
+      } else {
+        await loadBookings();
+      }
       renderApp();
     });
   });
@@ -600,6 +675,10 @@ function wireAppEvents() {
 
   document.querySelectorAll("[data-cancel]").forEach((button) => {
     button.addEventListener("click", () => updateBookingStatus(button.dataset.cancel, "cancelled"));
+  });
+
+  document.querySelectorAll("[data-user-role]").forEach((button) => {
+    button.addEventListener("click", () => updateUserRole(button.dataset.userRole, button.dataset.role));
   });
 
   document.querySelectorAll("[data-week-date]").forEach((day) => {
@@ -837,6 +916,28 @@ async function updateBookingStatus(id, status) {
   toast(`预约已${actionText}。`);
 }
 
+async function updateUserRole(id, role) {
+  if (!isSuperAdmin()) return;
+
+  const actionText = role === "admin" ? "设为管理员" : "移除管理员";
+  if (!window.confirm(`确定要${actionText}吗？`)) return;
+
+  toast(`正在${actionText}...`, "info");
+  const { error } = await supabase
+    .from("profiles")
+    .update({ role })
+    .eq("id", id);
+
+  if (error) {
+    toast(friendlyError(error), "error");
+    return;
+  }
+
+  await loadUserProfiles();
+  renderApp();
+  toast(`已${actionText}。`);
+}
+
 async function handleMicroscopeCreate(event) {
   event.preventDefault();
   const button = event.currentTarget.querySelector("button[type='submit']");
@@ -899,6 +1000,7 @@ function tabButton(id, label) {
 function pageTitle() {
   if (state.activeTab === "mine") return "我的预约";
   if (state.activeTab === "admin") return "后台管理";
+  if (state.activeTab === "users") return "用户管理";
   return "设备日程";
 }
 
@@ -934,6 +1036,15 @@ function deviceStatusText(status) {
     offline: "已停用"
   };
   return map[status] ?? status;
+}
+
+function roleText(role) {
+  const map = {
+    user: "普通用户",
+    admin: "管理员",
+    super_admin: "超级管理员"
+  };
+  return map[role] ?? role;
 }
 
 function formatTime(value) {

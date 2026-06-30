@@ -32,10 +32,10 @@ npm.cmd run dev
 
 如果你的终端允许执行 npm 脚本，也可以使用 `npm run dev`。服务地址为 `http://127.0.0.1:4173`。
 
-首次注册后，如需设置管理员，在 Supabase SQL Editor 执行：
+首次注册后，如需设置超级管理员，在 Supabase SQL Editor 执行：
 
 ```sql
-update public.profiles set role = 'admin' where email = 'your-email@example.com';
+update public.profiles set role = 'super_admin' where email = 'your-email@example.com';
 ```
 
 ## Cloudflare Pages 部署
