@@ -233,7 +233,6 @@ function renderAuth() {
             <button class="primary" type="submit" data-auth-mode="${isSignUp ? "signup" : "signin"}">${isSignUp ? "注册" : "登录"}</button>
             <button class="secondary" type="button" data-auth-toggle>${isSignUp ? "返回登录" : "注册账号"}</button>
           </div>
-          <p class="form-note">注册后如果无法登录，请先检查 Supabase 是否开启了邮箱确认。</p>
         </form>
       </section>
     </main>
