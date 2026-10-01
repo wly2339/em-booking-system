@@ -1,4 +1,3 @@
 window.EM_BOOKING_CONFIG = {
-  supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY"
+  apiBase: "https://YOUR_HTTP_GATEWAY_DOMAIN/api"
 };
